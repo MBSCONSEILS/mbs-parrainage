@@ -253,7 +253,7 @@ export default function App() {
             <>
               <h2 style={{ fontSize: 18, fontWeight: 600, color: C.primary, marginBottom: 20 }}>Accès conseiller</h2>
               <Inp label="Mot de passe" value={adminPwd} onChange={setAdminPwd} placeholder="••••••••" type="password" />
-              <Btn onClick={() => { if (adminPwd.length > 0) setAdminOk(true); }} style={{ width: "100%" }}>Se connecter</Btn>
+              <Btn onClick={() => { if (adminPwd === "Sacha-2015") setAdminOk(true); }} style={{ width: "100%" }}>Se connecter</Btn>
             </>
           ) : selected ? (
             <>
