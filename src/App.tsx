@@ -1,15 +1,26 @@
 import { useState, useRef, useEffect } from "react";
 
-const QRCode = ({ value, size = 180 }) => {
-  const canvasRef = useRef(null);
+const C = { primary: "#2c4a5a", accent: "#c8a96e", light: "#f5f7fa", border: "#e2e8f0", text: "#2d3748", muted: "#718096" };
+const STATUT_COLOR: Record<string, string> = { "À contacter": "#3182ce", "En cours": "#d69e2e", "Converti": "#38a169", "Perdu": "#e53e3e" };
+const STATUTS = ["À contacter", "En cours", "Converti", "Perdu"];
+const STORAGE_KEY = "mbs-prospects";
+
+interface Prospect {
+  id: number; prenom: string; nom: string; email: string;
+  tel: string; besoin: string; parrain: string; date: string; statut: string;
+}
+
+const QRCode = ({ value, size = 180 }: { value: string; size?: number }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
+    if (!ctx) return;
     const modules = 25, cell = size / modules;
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, size, size);
-    const hash = s => s.split("").reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
+    const hash = (s: string) => s.split("").reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
     const seed = Math.abs(hash(value));
     const pattern = Array.from({ length: modules }, (_, r) =>
       Array.from({ length: modules }, (_, c) => {
@@ -25,11 +36,6 @@ const QRCode = ({ value, size = 180 }) => {
   return <canvas ref={canvasRef} width={size} height={size} style={{ borderRadius: 8 }} />;
 };
 
-const C = { primary: "#2c4a5a", accent: "#c8a96e", light: "#f5f7fa", border: "#e2e8f0", text: "#2d3748", muted: "#718096" };
-const STATUT_COLOR = { "À contacter": "#3182ce", "En cours": "#d69e2e", "Converti": "#38a169", "Perdu": "#e53e3e" };
-const STATUTS = ["À contacter", "En cours", "Converti", "Perdu"];
-const STORAGE_KEY = "mbs-prospects";
-
 const Logo = () => (
   <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
     <div style={{ width: 50, height: 50, borderRadius: 10, background: C.primary, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -42,7 +48,9 @@ const Logo = () => (
   </div>
 );
 
-const Btn = ({ children, onClick, variant = "primary", style = {}, disabled = false }) => (
+const Btn = ({ children, onClick, variant = "primary", style = {}, disabled = false }: {
+  children: React.ReactNode; onClick?: () => void; variant?: string; style?: React.CSSProperties; disabled?: boolean;
+}) => (
   <button onClick={onClick} disabled={disabled} style={{
     padding: "10px 20px", borderRadius: 8, cursor: disabled ? "not-allowed" : "pointer", fontWeight: 500, fontSize: 14,
     background: variant === "primary" ? C.primary : variant === "accent" ? C.accent : "#fff",
@@ -52,7 +60,9 @@ const Btn = ({ children, onClick, variant = "primary", style = {}, disabled = fa
   }}>{children}</button>
 );
 
-const Inp = ({ label, value, onChange, placeholder, type = "text" }) => (
+const Inp = ({ label, value, onChange, placeholder, type = "text" }: {
+  label?: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+}) => (
   <div style={{ marginBottom: 14 }}>
     {label && <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: C.text, marginBottom: 4 }}>{label}</label>}
     <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
@@ -60,7 +70,7 @@ const Inp = ({ label, value, onChange, placeholder, type = "text" }) => (
   </div>
 );
 
-const Toast = ({ notifs, onDismiss }) => (
+const Toast = ({ notifs, onDismiss }: { notifs: (Prospect & { id: number })[]; onDismiss: (id: number) => void }) => (
   <div style={{ position: "fixed", bottom: 20, right: 20, display: "flex", flexDirection: "column", gap: 10, zIndex: 999 }}>
     {notifs.map(n => (
       <div key={n.id} style={{ background: C.primary, color: "#fff", borderRadius: 12, padding: "14px 18px", minWidth: 280, maxWidth: 340, boxShadow: "0 4px 24px rgba(0,0,0,0.18)", display: "flex", alignItems: "flex-start", gap: 12 }}>
@@ -76,13 +86,13 @@ const Toast = ({ notifs, onDismiss }) => (
   </div>
 );
 
-const buildMailto = p => {
+const buildMailto = (p: Prospect) => {
   const subject = encodeURIComponent(`[MBS Conseils] Fiche prospect — ${p.prenom} ${p.nom}`);
   const body = encodeURIComponent(`Bonjour,\n\nVoici la fiche du prospect recommandé via la plateforme MBS Conseils :\n\nNom : ${p.prenom} ${p.nom}\nEmail : ${p.email}\nTéléphone : ${p.tel || "Non renseigné"}\nBesoin : ${p.besoin || "Non précisé"}\nRecommandé par : ${p.parrain}\nDate : ${p.date}\nStatut : ${p.statut}\n\nCordialement,\nMBS Conseils`);
   return `mailto:?subject=${subject}&body=${body}`;
 };
 
-const DEFAULT_PROSPECTS = [
+const DEFAULT_PROSPECTS: Prospect[] = [
   { id: 1, prenom: "Sophie", nom: "Lefebvre", email: "sophie.l@email.fr", tel: "06 12 34 56 78", besoin: "Retraite", parrain: "Jean-Pierre Martin", date: "14/04/2026", statut: "À contacter" },
   { id: 2, prenom: "Marc", nom: "Dupont", email: "marc.d@email.fr", tel: "07 98 76 54 32", besoin: "Placement", parrain: "Catherine Moreau", date: "17/04/2026", statut: "En cours" },
 ];
@@ -92,14 +102,14 @@ export default function App() {
   const [clientInput, setClientInput] = useState("");
   const [clientName, setClientName] = useState("");
   const [qrValue, setQrValue] = useState("");
-  const [prospects, setProspects] = useState([]);
+  const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [form, setForm] = useState({ prenom: "", nom: "", email: "", tel: "", besoin: "" });
   const [submitted, setSubmitted] = useState(false);
-  const [notifs, setNotifs] = useState([]);
+  const [notifs, setNotifs] = useState<(Prospect & { id: number })[]>([]);
   const [adminOk, setAdminOk] = useState(false);
   const [adminPwd, setAdminPwd] = useState("");
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState<Prospect | null>(null);
   const [saving, setSaving] = useState(false);
   const notifId = useRef(0);
 
@@ -107,34 +117,32 @@ export default function App() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       setProspects(saved ? JSON.parse(saved) : DEFAULT_PROSPECTS);
-    } catch {
-      setProspects(DEFAULT_PROSPECTS);
-    }
+    } catch { setProspects(DEFAULT_PROSPECTS); }
     setLoaded(true);
   }, []);
 
-  const saveProspects = (list) => {
+  const saveProspects = (list: Prospect[]) => {
     setSaving(true);
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch {}
     setTimeout(() => setSaving(false), 800);
   };
 
-  const addProspect = (p) => {
+  const addProspect = (p: Prospect) => {
     const updated = [...prospects, p];
     setProspects(updated);
     saveProspects(updated);
   };
 
-  const updateStatut = (id, s) => {
+  const updateStatut = (id: number, s: string) => {
     const updated = prospects.map(x => x.id === id ? { ...x, statut: s } : x);
     setProspects(updated);
     setSelected(p => p ? { ...p, statut: s } : p);
     saveProspects(updated);
   };
 
-  const pushNotif = (p) => {
+  const pushNotif = (p: Prospect) => {
     const id = ++notifId.current;
-    setNotifs(n => [...n, { id, ...p }]);
+    setNotifs(n => [...n, { ...p, id }]);
     setTimeout(() => setNotifs(n => n.filter(x => x.id !== id)), 7000);
   };
 
@@ -145,13 +153,13 @@ export default function App() {
   const handleProspectSubmit = () => {
     if (!form.prenom || !form.nom || !form.email) return;
     const parrain = clientName || "Lien direct";
-    const newP = { id: Date.now(), ...form, parrain, date: new Date().toLocaleDateString("fr-FR"), statut: "À contacter" };
+    const newP: Prospect = { id: Date.now(), ...form, parrain, date: new Date().toLocaleDateString("fr-FR"), statut: "À contacter" };
     addProspect(newP);
     setSubmitted(true);
     pushNotif(newP);
   };
 
-  const Back = ({ to }) => (
+  const Back = ({ to }: { to: string }) => (
     <button onClick={() => { setView(to); if (to === "home") { setAdminOk(false); setAdminPwd(""); setSelected(null); } }}
       style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 13, marginBottom: 16, padding: 0 }}>← Retour</button>
   );
@@ -167,17 +175,17 @@ export default function App() {
         <div style={{ maxWidth: 420, margin: "0 auto", padding: "2rem 1rem" }}>
           <Logo />
           <p style={{ fontSize: 14, color: C.muted, marginBottom: 28 }}>Choisissez votre espace.</p>
-          {[
+          {([
             { label: "Espace client", sub: "Générez votre QR code de parrainage", to: "client" },
             { label: "Formulaire prospect", sub: "Vous avez été recommandé — déposez vos coordonnées", to: "prospect" },
             { label: "Tableau de bord", sub: "Accès conseiller — suivre toutes les recommandations", to: "admin", badge: prospects.filter(p => p.statut === "À contacter").length },
-          ].map(item => (
+          ] as { label: string; sub: string; to: string; badge?: number }[]).map(item => (
             <div key={item.to} onClick={() => setView(item.to)} style={{ marginBottom: 12, padding: "18px 20px", borderRadius: 12, border: `1.5px solid ${C.border}`, cursor: "pointer", background: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ fontWeight: 600, fontSize: 15, color: C.primary, marginBottom: 4 }}>{item.label}</div>
                 <div style={{ fontSize: 13, color: C.muted }}>{item.sub}</div>
               </div>
-              {item.badge > 0 && <span style={{ background: "#e53e3e", color: "#fff", borderRadius: "50%", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{item.badge}</span>}
+              {item.badge != null && item.badge > 0 && <span style={{ background: "#e53e3e", color: "#fff", borderRadius: "50%", width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{item.badge}</span>}
             </div>
           ))}
         </div>
@@ -259,7 +267,7 @@ export default function App() {
                   <span style={{ background: `${STATUT_COLOR[selected.statut]}18`, color: STATUT_COLOR[selected.statut], padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>{selected.statut}</span>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-                  {[["Email", selected.email], ["Téléphone", selected.tel || "—"], ["Besoin", selected.besoin || "—"], ["Recommandé par", selected.parrain]].map(([k, v]) => (
+                  {([["Email", selected.email], ["Téléphone", selected.tel || "—"], ["Besoin", selected.besoin || "—"], ["Recommandé par", selected.parrain]] as [string, string][]).map(([k, v]) => (
                     <div key={k} style={{ background: C.light, borderRadius: 10, padding: "10px 14px" }}>
                       <div style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 2 }}>{k}</div>
                       <div style={{ fontSize: 14, color: C.text, fontWeight: 500 }}>{v}</div>
